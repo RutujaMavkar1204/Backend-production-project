@@ -1,0 +1,16 @@
+{
+  "name": "lec4-make-a-production-grade-project",
+  "version": "1.0.0",
+  "description": "this is backend project",
+  "keywords": [
+    "react",
+    "express"
+  ],
+  "license": "ISC",
+  "author": "Rutuja",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
