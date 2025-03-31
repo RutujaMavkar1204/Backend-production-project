@@ -3,11 +3,10 @@
 
 //require('dotenv').config()
 
-
+import {app} from './app.js'
 import dotenv from 'dotenv';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import connectDB from './db/index.js';
+ 
 
 
 dotenv.config(
@@ -15,15 +14,6 @@ dotenv.config(
         path:'./env'
     }
 )
-app.use(cors({
-    origin:process.env.CORS_URL,
-    credentials:true
-}))
-app.use(express.json({limit:'16kb'})); //parse form submission from json to javascript
-app.use(express.urlencoded({limit:'16kb'})); // encode the url
-app.use(express.static('public'));//store some files and document in this public folder
-app.use(cookieParser());//change cookies of client
-
 
 
 connectDB()
@@ -38,6 +28,27 @@ connectDB()
 .catch((error)=>{
     console.log(`database connection failed and error is :${error}`)
 })
+
+import userRouter from './routes/user.router.js'
+
+app.use('/api/v1/users', userRouter)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // const app= express()
 
