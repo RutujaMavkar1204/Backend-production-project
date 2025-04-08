@@ -14,7 +14,7 @@ const verifyJWT=asyncHandler(async(req,res,next)=>{
         const decodedToken =jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
 
         if(!decodedToken){
-            throw new ApiErrors(400, "Unauthorized request")
+            throw new ApiErrors(400, "Unauthorized request 2")
         }
         const user=await User.findById(decodedToken._id).select("-password -refreshToken" )
         if(!user){
@@ -25,6 +25,7 @@ const verifyJWT=asyncHandler(async(req,res,next)=>{
 
     }
     catch(error){
+        console.log("error: ", error)
         throw new ApiErrors(error?.message ||'error in access token ')
     }
 })

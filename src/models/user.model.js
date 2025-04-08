@@ -63,7 +63,7 @@ userSchema.pre('save',async function(next){
 userSchema.methods.isPasswordCorrect=async function(password){
   return await bcrypt.compare(password,this.password)
 }
-userSchema.methods.generateAccesTokens=function(){
+userSchema.methods.generateAccessTokens=function(){
     return jwt.sign(
         {
             _id:this._id,
@@ -72,12 +72,12 @@ userSchema.methods.generateAccesTokens=function(){
         },
         process.env.ACCESS_TOKEN_SECRET,
         {
-            expiresIn:ACCESS_TOKEN_EXPIRY,
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
         }
     )
     
 }
-userSchema.methods.generateRefeshTokens=function(){
+userSchema.methods.generateRefreshTokens=function(){
     return jwt.sign(
         {
             _id:this._id,
@@ -85,7 +85,7 @@ userSchema.methods.generateRefeshTokens=function(){
         },
         process.env.REFRESH_TOKEN_SECRET,
         {
-            expiresIn:REFRESH_TOKEN_EXPIRY
+            expiresIn:process.env.REFRESH_TOKEN_EXPIRY
         }
     )
 }
