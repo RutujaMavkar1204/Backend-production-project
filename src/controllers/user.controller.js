@@ -8,13 +8,13 @@ import jwt from 'jsonwebtoken'
 const GenerateRefreshAndAccessTokens= async (userId)=>{
   try{
     const user=await User.findById(userId);
-    const AccessToken= await user.generateAccessTokens()
-    const RefreshToken= await user.generateRefreshTokens()
+    const accessToken= await user.generateAccessTokens()
+    const refreshToken= await user.generateRefreshTokens()
 
-    user.refreshToken=RefreshToken;
+    user.refreshToken=refreshToken;
     await user.save({validateBeforeSave: false})
 
-    return { AccessToken,RefreshToken}
+    return { accessToken,refreshToken}
 
 
   }
@@ -123,10 +123,10 @@ const login=asyncHandler(async(req,res)=>{
   }
   
 
-const {AccessToken,RefreshToken}=await GenerateRefreshAndAccessTokens(user._id);
+const {accessToken,refreshToken}=await GenerateRefreshAndAccessTokens(user._id);
 
 const loggedInUser= await User.findById(user._id).select(
-  "-password -RefreshToken"
+  "-password -refreshToken"
 )
 const options={
  httpOnly:true,
@@ -134,13 +134,13 @@ const options={
 }
 res.
 status(200)
-.cookie("RefreshToken", RefreshToken, options)
-.cookie("AccessToken", AccessToken, options)
+.cookie("refreshToken", refreshToken, options)
+.cookie("accessToken", accessToken, options)
 .json(
   new ApiResponse(
     200,
     {
-      user:loggedInUser,RefreshToken, AccessToken
+      user:loggedInUser,refreshToken, accessToken
     },
     "user logged in successful"
   )
@@ -155,7 +155,7 @@ const logout=asyncHandler(async(req,res)=>{
           req.user._id,
           {
             $set:{
-              AccessToken:undefined
+              accessToken:undefined
             }
           },
           {
@@ -169,21 +169,21 @@ const logout=asyncHandler(async(req,res)=>{
         }
         res
         .status(200)
-        .clearCookie('AccessToken', options)
-        .clearCookie('RefreshToken', options)
+        .clearCookie('accessToken', options)
+        .clearCookie('refreshToken', options)
         .json(
           new ApiResponse(200,{},"user is logged out successfully "))
 })
 
 const refreshedAccessToken=asyncHandler(async(req,res)=>{
     try{
-     const incomingRefreshToken= await req.cookies?.AccessToken||req.body.AccessToken
+     const incomingRefreshToken= await req.cookies?.refreshToken ||req.body.refreshToken
 
-     if(incomingRefreshToken){
+     if(!incomingRefreshToken){
       throw new ApiErrors(401, 'unauthorized access');
      }
 
-     const decodeToken= jwt.verify(incomingRefreshToken, process.env.ACCESS_TOKEN_SECRET)
+     const decodeToken= jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
      const user = await User.findById(decodeToken?._id);
 
      if(!user){
@@ -194,18 +194,18 @@ const refreshedAccessToken=asyncHandler(async(req,res)=>{
       throw new ApiErrors(401, 'refresh token is expired or used');
      }
 
-     const {AccessToken,newRefreshToken}=await GenerateRefreshAndAccessTokens(user?._id)
+     const {accessToken,newRefreshToken}=await GenerateRefreshAndAccessTokens(user?._id)
       const options={
         secure:true,
         httpOnly:true
       }
       res
       .status(200)
-      .cookie("AccessToken" ,AccessToken, options)
-      .cookie("newRefreshToken" ,newRefreshToken, options)
+      .cookie("accessToken" ,accessToken, options)
+      .cookie("refreshToken" ,newRefreshToken, options)
       .json(
         new ApiResponse(200,{
-          AccessToken,
+          accessToken,
           refreshToken:newRefreshToken
         },
       "Access Token is Refreshed")
@@ -225,10 +225,118 @@ const refreshedAccessToken=asyncHandler(async(req,res)=>{
       throw new ApiErrors(400,error?.message||"Access token is not refreshed")
     }
 })
+
+
+const changePassword=asyncHandler(async(req, res)=>{
+    const {oldPassword, newPassword}=req.body
+  
+   const user= await User.findById(req.user?._id);
+
+   const isPasswordCorrect=await user.isPasswordCorrect(oldPassword);
+
+   if(!isPasswordCorrect){
+    throw new ApiErrors(400, "the password is incorrect");
+   }
+
+   user.password=newPassword;
+   user.save({validateBeforeSave:false})
+   res.status(200)
+   .json(
+    new ApiResponse(200,{}, "new password is set")
+   )
+})
+
+ const getCurrentUser=asyncHandler(async(req,res)=>{
+ 
+  res.status(200).json(
+    new ApiResponse(200, req.user, "current user fetched")
+  )
+ })
+
+ const updateUserDetails=asyncHandler(async(req, res)=>{
+  const {username, email, fullName}= req.body;
+
+  if(!(username || email || fullName)){
+    throw new ApiErrors(400, 'All fields are necessary')
+  }
+  const user=await User.findByIdAndUpdate(req.user?._id, {
+    $set:{
+      username:username,
+      email:email,
+      fullName:fullName
+    }
+  },{
+    new:true
+  }).select("-password")
+  res.status(200).json(
+    new ApiResponse(200, user, "changes are Applied Successfully")
+  )
+ })
+
+ const updateUserAvatar=asyncHandler(async(req, res)=>{
+   const avatarLocalPath= req.file?.path;
+
+   if(!avatarLocalPath){
+    throw new ApiErrors(400, 'file is not uploaded')
+   }
+
+  const avatar= await uploadOnCloudinary(avatarLocalPath);
+
+   if(!avatar.url){
+    throw new ApiErrors(500, 'file is not uploaded')
+   }
+
+   const user=await User.findByIdAndUpdate(req.user?._id,{
+    $set:{
+    avatar:avatar.url
+   }
+  },{
+    new:true
+   }).select("password")
+   res.status(200).json(
+    new ApiResponse(200, user, "changes are Applied Successfully")
+  )
+
+
+ })
+
+ const updateUserCoverImage=asyncHandler(async(req, res)=>{
+  const coverImageUrl= req.file.path;
+
+  if(!coverImageUrl){
+    throw new ApiErrors(400, 'error in updating coverImage');
+  }
+
+  const coverImage=await uploadOnCloudinary(coverImageUrl)
+  if(!coverImage){
+    throw new ApiErrors(400, 'error in uploading coverImage');
+   }
+  
+   const user =await User.findByIdAndUpdate(req.user._id,{
+    $set:{
+      coverImage:coverImage.url
+    }
+   },{
+    new:true
+   }).select("-password")
+  
+   res.status(200).json(
+    new ApiResponse(200, user, 'coverimage is successfully updated')
+   )
+  
+ })
+
+
 export {
   registerUser,
   login,
   logout,
-  refreshedAccessToken
+  refreshedAccessToken,
+  changePassword,
+  getCurrentUser,
+  updateUserDetails,
+  updateUserAvatar,
+  updateUserCoverImage
+
 
 }
